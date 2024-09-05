@@ -8,6 +8,7 @@ from urllib3.util.retry import Retry  # 使用urllib3库中的Retry
 def get_bgm_url(page_num):
     url_list = []
     vote_num = []
+    title_list = []
     base_url = "https://bangumi.tv/anime/browser?sort=rank&page="
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
@@ -29,11 +30,13 @@ def get_bgm_url(page_num):
         soup = BeautifulSoup(response.content, 'html.parser')
 
         # 提取动画链接
+        # 提取动画链接和标题
         anime_links = soup.find_all('a', class_='l')
         for link in anime_links:
             href = link.get('href')
             if '/subject' in href:
                 url_list.append(href)
+                title_list.append(link.text.strip())  # 提取标题
 
         # 提取评分人数
         rating_spans = soup.find_all('span', class_='tip_j')
@@ -42,7 +45,7 @@ def get_bgm_url(page_num):
             if number:
                 vote_num.append(number[0])
 
-    return url_list, vote_num
+    return url_list, vote_num, title_list
 
 
 def get_need_points(vote_num):
@@ -61,7 +64,7 @@ def data_deal(stars, need_num):
 def get_points(url_list, vote_num):
     result = []
     page_num = 1
-    kind = ['/collections?page=', '/doings?page=', '/on_hold?=?', '/dropped?page=']
+    kind = ['/collections?page=', '/doings?page=', '/on_hold?page=', '/dropped?page=']
     stars = []
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
@@ -120,15 +123,18 @@ def get_points(url_list, vote_num):
                     break
         result.append(data_deal(stars, need_num))
         print(result)
-    with open('result.txt', 'w') as file:
-        for item in result:
-            file.write(f"{item}\n")
+    return result
 
 
 
 if __name__ == '__main__':
-    url_list, vote_num = get_bgm_url(20)
+    url_list, vote_num, title_list = get_bgm_url(20)
     print(url_list)
     print(vote_num)
+    print(title_list)
     # 爬取前480的动画链接和评分人数
-    get_points(url_list, vote_num)
+    result = get_points(url_list, vote_num)
+    # 保存result为txt文件，包含动漫标题
+    with open('result.txt', 'w') as file:
+        for title, url, res in zip(title_list, result):
+            file.write(f"{{'title': '{title}', 'result': {res}}}\n")
